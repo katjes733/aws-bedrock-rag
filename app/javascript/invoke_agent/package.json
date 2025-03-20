@@ -1,0 +1,23 @@
+{
+  "name": "invoke_agent_lambda_function",
+  "version": "1.0.0",
+  "description": "Lamda function invoking an Amazon Bedrock Agent and streamin (optionally) back the response",
+  "main": "index.mjs",
+  "scripts": {},
+  "keywords": [
+    "bedrock",
+    "lambda",
+    "agents",
+    "streaming",
+    "genai"
+  ],
+  "author": "martin.macecek@rearc.io",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-bedrock-agent-runtime": "^3.765.0",
+    "pino": "^9.6.0",
+    "pino-lambda": "^4.4.1",
+    "pino-pretty": "^13.0.0",
+    "uuid": "^11.1.0"
+  }
+}
