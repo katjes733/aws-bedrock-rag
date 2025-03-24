@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: | 
+Description: |
   AWS SAM template for Lambda function with API Gateway, 
   Bedrock Knowledge Base, Bedrock Agents, and OpenSearch Serverless.
   Requires an existing VPC with private subnets and a S3 Gateway endpoint 
@@ -43,10 +43,10 @@ Parameters:
     Description: A comma-separated list of subnet IDs for the Lambda and DB resources.
   UseApiGateway:
     Type: String
-    Default: "NO"
+    Default: 'NO'
     AllowedValues:
-      - "NO"
-      - "YES"
+      - 'NO'
+      - 'YES'
   KnowledgeBaseSyncPollRate:
     Type: Number
     Default: 300
@@ -81,16 +81,32 @@ Parameters:
     AllowedPattern: ^[a-zA-Z][a-zA-Z0-9\-]{1,80}(,[a-zA-Z][a-zA-Z0-9\-]{1,80})*$
   KnowledgeBaseEmbeddingSize:
     Type: String
-    Default: "1024"
+    Default: '1024'
     AllowedValues:
-      - "1024"
-      - "1536"
+      - '1024'
+      - '1536'
   DataSourceParser:
     Type: String
-    Default: "DEFAULT"
+    Default: 'DEFAULT'
     AllowedValues:
-      - "DEFAULT"
-      - "DATA_AUTOMATION"
+      - 'DEFAULT'
+      - 'DATA_AUTOMATION'
+  KnowledgeBaseFieldMappingPkField:
+    Type: String
+    Default: 'id'
+    AllowedPattern: ^$|^[a-zA-Z_]{2,63}$
+  KnowledgeBaseFieldMappingMetadataField:
+    Type: String
+    Default: 'metadata'
+    AllowedPattern: ^[a-zA-Z_]{2,63}$
+  KnowledgeBaseFieldMappingChunksField:
+    Type: String
+    Default: 'chunks'
+    AllowedPattern: ^[a-zA-Z_]{2,63}$
+  KnowledgeBaseFieldMappingEmbeddingField:
+    Type: String
+    Default: 'embedding'
+    AllowedPattern: ^[a-zA-Z_]{2,63}$
 
 Conditions:
   CreateOpenSearchKb: !Equals [!Ref KnowledgeDatabase, 'OPENSEARCH']
@@ -110,9 +126,9 @@ Resources:
               SSEAlgorithm: AES256
       NotificationConfiguration:
         QueueConfigurations:
-          - Event: "s3:ObjectCreated:*"
+          - Event: 's3:ObjectCreated:*'
             Queue: !GetAtt SyncKnowledgeBasesSqsQueue.Arn
-          - Event: "s3:ObjectRemoved:*"
+          - Event: 's3:ObjectRemoved:*'
             Queue: !GetAtt SyncKnowledgeBasesSqsQueue.Arn
       Tags:
         - Key: Owner
@@ -150,7 +166,7 @@ Resources:
     Properties:
       VisibilityTimeout: !Ref KnowledgeBaseSyncPollRate
       MessageRetentionPeriod: 345600 # 4 days
-  
+
   SyncKnowledgeBasesSqsQueuePolicy:
     Type: AWS::SQS::QueuePolicy
     Properties:
@@ -160,8 +176,8 @@ Resources:
         Version: '2012-10-17'
         Statement:
           - Effect: Allow
-            Principal: "*"
-            Action: "sqs:SendMessage"
+            Principal: '*'
+            Action: 'sqs:SendMessage'
             Resource: !GetAtt SyncKnowledgeBasesSqsQueue.Arn
             Condition:
               ArnEquals:
@@ -187,16 +203,16 @@ Resources:
       RoleName: !Sub ${ResourcePrefix}-AmazonBedrockExecutionRoleForKnowledgeBase
       AssumeRolePolicyDocument:
         Statement:
-        - Sid: AmazonBedrockKnowledgeBaseTrustPolicy
-          Effect: Allow
-          Principal:
-            Service: bedrock.amazonaws.com
-          Action: sts:AssumeRole
-          Condition:
-            StringEquals:
-              "aws:SourceAccount": !Sub "${AWS::AccountId}"
-            ArnLike:
-              "AWS:SourceArn": !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/*"
+          - Sid: AmazonBedrockKnowledgeBaseTrustPolicy
+            Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                'aws:SourceAccount': !Sub '${AWS::AccountId}'
+              ArnLike:
+                'AWS:SourceArn': !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/*'
       Path: /
       Policies:
         - PolicyName: KbDsS3Access
@@ -245,7 +261,7 @@ Resources:
     Properties:
       PolicyName: DataAutomationPolicy
       PolicyDocument:
-        Version: "2012-10-17"
+        Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Action:
@@ -273,7 +289,7 @@ Resources:
   CfnToolsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Description: "Function with various tools for CFN"
+      Description: 'Function with various tools for CFN'
       Timeout: 75 # 60s (max allowed) + 15s buffer for sleep function
       CodeUri: app/python/cfn_tools/
       Handler: main.lambda_handler
@@ -286,28 +302,28 @@ Resources:
           LOG_LEVEL: !Ref LogLevel
       Policies:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        - Version: '2012-10-17' 
+        - Version: '2012-10-17'
           Statement:
-          - Effect: Allow
-            Action:
-              - s3:GetObject
-              - s3:PutObject
-              - s3:DeleteObject
-            Resource:
-              - !Sub ${KnowledgeBaseDataSourceS3Bucket.Arn}/*
-              - !If
-                - UseDataAutomationParser
-                - !Sub ${KnowledgeBaseDataSupplementalS3Bucket.Arn}/*
-                - !Ref 'AWS::NoValue'
-          - Effect: Allow
-            Action:
-              - s3:ListBucket
-            Resource:
-              - !Sub ${KnowledgeBaseDataSourceS3Bucket.Arn}
-              - !If
-                - UseDataAutomationParser
-                - !Sub ${KnowledgeBaseDataSupplementalS3Bucket.Arn}
-                - !Ref 'AWS::NoValue'
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:DeleteObject
+              Resource:
+                - !Sub ${KnowledgeBaseDataSourceS3Bucket.Arn}/*
+                - !If
+                  - UseDataAutomationParser
+                  - !Sub ${KnowledgeBaseDataSupplementalS3Bucket.Arn}/*
+                  - !Ref 'AWS::NoValue'
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource:
+                - !Sub ${KnowledgeBaseDataSourceS3Bucket.Arn}
+                - !If
+                  - UseDataAutomationParser
+                  - !Sub ${KnowledgeBaseDataSupplementalS3Bucket.Arn}
+                  - !Ref 'AWS::NoValue'
       Tracing: Active
       Tags:
         Owner: !Ref OwnerTag
@@ -327,7 +343,7 @@ Resources:
   NetworkPolicy:
     Type: 'AWS::OpenSearchServerless::SecurityPolicy'
     Condition: CreateOpenSearchKb
-    Properties: 
+    Properties:
       Name: !Sub ${ResourcePrefix}-kb-np
       Type: network
       Description: Network policy for AOSS collection
@@ -354,7 +370,7 @@ Resources:
           Value: !Ref OwnerTag
         - Key: Project
           Value: !Ref ResourcePrefix
-    DependsOn: 
+    DependsOn:
       - EncryptionPolicy
       - NetworkPolicy
       - DataAccessPolicy
@@ -379,13 +395,13 @@ Resources:
               Engine: faiss
               SpaceType: l2
               Name: hnsw
-              # Encoder: 
+              # Encoder:
               #   Name: sq
               #   Parameters:
               #     Type: fp16
               #     clip: true
               # Parameters:
-              #   encoder: 
+              #   encoder:
               #     Name: sq
               #     Parameters:
               #       Type: fp16
@@ -420,7 +436,7 @@ Resources:
       Function: Sleep
       SleepTime: 60
     DependsOn:
-      - OpenSearchServerlessIndex  
+      - OpenSearchServerlessIndex
 
   AmazonBedrockExecutionRoleForAgents:
     Type: AWS::IAM::Role
@@ -428,10 +444,10 @@ Resources:
       RoleName: !Sub ${ResourcePrefix}-AmazonBedrockExecutionRoleForAgents
       AssumeRolePolicyDocument:
         Statement:
-        - Effect: Allow
-          Principal:
-            Service: bedrock.amazonaws.com
-          Action: sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonBedrockFullAccess
       Tags:
@@ -450,18 +466,18 @@ Resources:
       Description: Opensearch Serverless Knowledge DB
       RoleArn: !GetAtt AmazonBedrockExecutionRoleForKnowledgeBase.Arn
       KnowledgeBaseConfiguration:
-        Type: "VECTOR"
+        Type: 'VECTOR'
         VectorKnowledgeBaseConfiguration:
-          EmbeddingModelArn: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v1"
+          EmbeddingModelArn: !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v1'
       StorageConfiguration:
-        Type: "OPENSEARCH_SERVERLESS"
+        Type: 'OPENSEARCH_SERVERLESS'
         OpensearchServerlessConfiguration:
           CollectionArn: !GetAtt OpenSearchServerlessCollection.Arn
           VectorIndexName: !Sub ${ResourcePrefix}-kb-idx
           FieldMapping:
-            VectorField: "vector"
-            TextField: "text"
-            MetadataField: "metadata"
+            VectorField: !Ref KnowledgeBaseFieldMappingEmbeddingField
+            TextField: '!Ref KnowledgeBaseFieldMappingChunksField'
+            MetadataField: !Ref KnowledgeBaseFieldMappingMetadataField
       Tags:
         Owner: !Ref OwnerTag
         Project: !Ref ResourcePrefix
@@ -472,7 +488,7 @@ Resources:
       KnowledgeBaseId: !Ref KnowledgeBaseWithAoss
       Name: !Sub ${ResourcePrefix}-kb-ds
       DataSourceConfiguration:
-        Type: "S3"
+        Type: 'S3'
         S3Configuration:
           BucketArn: !GetAtt KnowledgeBaseDataSourceS3Bucket.Arn
 
@@ -515,8 +531,8 @@ Resources:
         MinCapacity: 0
         MaxCapacity: 2
         SecondsUntilAutoPause: 10800
-      MasterUsername: !Sub "{{resolve:secretsmanager:${AuroraDbSecret}::username}}"
-      MasterUserPassword: !Sub "{{resolve:secretsmanager:${AuroraDbSecret}::password}}"
+      MasterUsername: !Sub '{{resolve:secretsmanager:${AuroraDbSecret}::username}}'
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${AuroraDbSecret}::password}}'
       DBSubnetGroupName: !Ref AuroraDbSubnetGroup
       BackupRetentionPeriod: 1
       StorageType: aurora
@@ -537,7 +553,7 @@ Resources:
     Properties:
       PolicyName: RdsAccess
       PolicyDocument:
-        Version: "2012-10-17"
+        Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Action:
@@ -557,18 +573,18 @@ Resources:
     Properties:
       PolicyName: SecretAccess
       PolicyDocument:
-        Version: "2012-10-17"
+        Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Action:
               - secretsmanager:GetSecretValue
-            Resource: 
+            Resource:
               - !Ref BedrockIntegrationSecret
       Roles:
         - !Ref AmazonBedrockExecutionRoleForKnowledgeBase
 
   AuroraDbInstance:
-    Type: "AWS::RDS::DBInstance"
+    Type: 'AWS::RDS::DBInstance'
     Condition: CreatePostgresKb
     Properties:
       Engine: aurora-postgresql
@@ -591,7 +607,7 @@ Resources:
       Description: Database credentials for the Aurora DB
       GenerateSecretString:
         SecretStringTemplate: '{"username":"postgres"}'
-        GenerateStringKey: "password"
+        GenerateStringKey: 'password'
         PasswordLength: 16
         ExcludeCharacters: '"@/\\$'
       Tags:
@@ -608,7 +624,7 @@ Resources:
       Description: Database credentials for the bedrock integration schema for the Aurora DB
       GenerateSecretString:
         SecretStringTemplate: !Sub '{"username":"bedrock_user","schema":"bedrock_integration","embedding_size":"${KnowledgeBaseEmbeddingSize}"}'
-        GenerateStringKey: "password"
+        GenerateStringKey: 'password'
         PasswordLength: 16
         ExcludeCharacters: '"@/\\$'
       Tags:
@@ -659,25 +675,24 @@ Resources:
       SourceSecurityGroupId: !Ref DbSetupFunctionSecurityGroup
 
   SmVpcEndpoint:
-    Type: "AWS::EC2::VPCEndpoint"
+    Type: 'AWS::EC2::VPCEndpoint'
     Condition: CreatePostgresKb
     Properties:
-      VpcEndpointType: "Interface"
+      VpcEndpointType: 'Interface'
       VpcId: !Ref VpcId
-      ServiceName: !Sub "com.amazonaws.${AWS::Region}.secretsmanager"
-      PolicyDocument: 
-        Version: "2012-10-17"
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.secretsmanager'
+      PolicyDocument:
+        Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Principal:
-              AWS: !GetAtt DbSetupRole.Arn
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
             Action: secretsmanager:GetSecretValue
-            Resource: 
-              - !Ref AuroraDbSecret
-              - !Ref BedrockIntegrationSecret
+            Resource:
+              - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:*'
       SubnetIds: !Ref SubnetIds
       PrivateDnsEnabled: true
-      SecurityGroupIds: 
+      SecurityGroupIds:
         - !Ref SmVpceSecurityGroup
       Tags:
         - Key: Name
@@ -711,28 +726,28 @@ Resources:
       SourceSecurityGroupId: !Ref DbSetupFunctionSecurityGroup
 
   RdsDataVpcEndpoint:
-    Type: "AWS::EC2::VPCEndpoint"
+    Type: 'AWS::EC2::VPCEndpoint'
     Condition: CreatePostgresKb
     Properties:
-      VpcEndpointType: "Interface"
+      VpcEndpointType: 'Interface'
       VpcId: !Ref VpcId
-      ServiceName: !Sub "com.amazonaws.${AWS::Region}.rds-data"
-      PolicyDocument: 
-        Version: "2012-10-17"
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.rds-data'
+      PolicyDocument:
+        Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Principal:
-              AWS: !GetAtt DbSetupRole.Arn
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
             Action:
               - rds-data:ExecuteStatement
               - rds-data:BeginTransaction
               - rds-data:CommitTransaction
               - rds-data:RollbackTransaction
-            Resource: 
-              - !GetAtt AuroraDbCluster.DBClusterArn
+            Resource:
+              - !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:*'
       SubnetIds: !Ref SubnetIds
       PrivateDnsEnabled: true
-      SecurityGroupIds: 
+      SecurityGroupIds:
         - !Ref RdsDataVpceSecurityGroup
       Tags:
         - Key: Name
@@ -748,10 +763,10 @@ Resources:
     Properties:
       AssumeRolePolicyDocument:
         Statement:
-        - Effect: Allow
-          Principal:
-            Service: lambda.amazonaws.com
-          Action: sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
       Path: /
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
@@ -763,7 +778,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
-                Resource: 
+                Resource:
                   - !Ref AuroraDbSecret
                   - !Ref BedrockIntegrationSecret
         - PolicyName: RdsAccess
@@ -777,13 +792,6 @@ Resources:
                   - rds-data:CommitTransaction
                   - rds-data:RollbackTransaction
                 Resource: !GetAtt AuroraDbCluster.DBClusterArn
-        - PolicyName: S3Access
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: "*"
-                Resource: "*"
       Tags:
         - Key: Owner
           Value: !Ref OwnerTag
@@ -810,7 +818,7 @@ Resources:
         Owner: !Ref OwnerTag
         Project: !Ref ResourcePrefix
       VpcConfig:
-        SecurityGroupIds: 
+        SecurityGroupIds:
           - !Ref DbSetupFunctionSecurityGroup
         SubnetIds: !Ref SubnetIds
 
@@ -826,6 +834,11 @@ Resources:
       BedrockSecretArn: !Ref BedrockIntegrationSecret
       DatabaseName: !Ref KnowledgeBaseDatabaseName
       KnowledgeBaseTables: !Ref KnowledgeBaseTables
+      FieldMapping:
+        PrimaryKeyField: !Ref KnowledgeBaseFieldMappingPkField
+        MetadataField: !Ref KnowledgeBaseFieldMappingMetadataField
+        TextField: !Ref KnowledgeBaseFieldMappingChunksField
+        VectorField: !Ref KnowledgeBaseFieldMappingEmbeddingField
 
   KnowledgeBase1WithPostgres:
     Type: AWS::Bedrock::KnowledgeBase
@@ -838,47 +851,45 @@ Resources:
         - '-'
         - - !Ref ResourcePrefix
           - 'kb'
-          - !Select [ 0, !Split [ ',' , !Ref KnowledgeBaseNames ] ]
+          - !Select [0, !Split [',', !Ref KnowledgeBaseNames]]
       Description: !Join
         - ''
         - - 'Knowledge Base for Bedrock ('
-          - !Select [ 0, !Split [ ',' , !Ref KnowledgeBaseNames ] ]
+          - !Select [0, !Split [',', !Ref KnowledgeBaseNames]]
           - ')'
       RoleArn: !GetAtt AmazonBedrockExecutionRoleForKnowledgeBase.Arn
       KnowledgeBaseConfiguration:
-        Type: "VECTOR"
+        Type: 'VECTOR'
         VectorKnowledgeBaseConfiguration:
-          EmbeddingModelArn: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0"
+          EmbeddingModelArn: !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0'
           SupplementalDataStorageConfiguration: !If
             - UseDataAutomationParser
-            - 
-              SupplementalDataStorageLocations:
+            - SupplementalDataStorageLocations:
                 - S3Location:
                     URI: !Join
                       - ''
                       - - 's3://'
                         - !Ref KnowledgeBaseDataSupplementalS3Bucket
                         - '/'
-                        - !Select [ 0, !Split [ ',' , !Ref KnowledgeBaseNames ] ]
+                        - !Select [0, !Split [',', !Ref KnowledgeBaseNames]]
                         - '/'
                   SupplementalDataStorageLocationType: S3
-            - !Ref "AWS::NoValue"
+            - !Ref 'AWS::NoValue'
       StorageConfiguration:
-        Type: "RDS"
+        Type: 'RDS'
         RdsConfiguration:
           CredentialsSecretArn: !Ref BedrockIntegrationSecret
           DatabaseName: !Ref KnowledgeBaseDatabaseName
           FieldMapping:
-            # TODO: These are currently hard-coded. Consider parameterizeing.
-            MetadataField: metadata
-            PrimaryKeyField: id
-            TextField: chunks
-            VectorField: embedding
+            MetadataField: !Ref KnowledgeBaseFieldMappingMetadataField
+            PrimaryKeyField: !Ref KnowledgeBaseFieldMappingPkField
+            TextField: !Ref KnowledgeBaseFieldMappingChunksField
+            VectorField: !Ref KnowledgeBaseFieldMappingEmbeddingField
           ResourceArn: !GetAtt AuroraDbCluster.DBClusterArn
           TableName: !Join
             - '.'
             - - !Sub '{{resolve:secretsmanager:${BedrockIntegrationSecret}::schema}}'
-              - !Select [ 0, !Split [ ',' , !Ref KnowledgeBaseTables ] ]
+              - !Select [0, !Split [',', !Ref KnowledgeBaseTables]]
       Tags:
         Owner: !Ref OwnerTag
         Project: !Ref ResourcePrefix
@@ -891,17 +902,17 @@ Resources:
         - '-'
         - - !Ref ResourcePrefix
           - 'kb'
-          - !Select [ 0, !Split [ ',' , !Ref KnowledgeBaseNames ] ]
+          - !Select [0, !Split [',', !Ref KnowledgeBaseNames]]
           - 'ds'
       DataDeletionPolicy: RETAIN
       DataSourceConfiguration:
-        Type: "S3"
+        Type: 'S3'
         S3Configuration:
           BucketArn: !GetAtt KnowledgeBaseDataSourceS3Bucket.Arn
           InclusionPrefixes:
             - !Join
               - ''
-              - - !Select [ 0, !Split [ ',' , !Ref KnowledgeBaseNames ] ]
+              - - !Select [0, !Split [',', !Ref KnowledgeBaseNames]]
                 - '/'
       VectorIngestionConfiguration:
         ChunkingConfiguration:
@@ -912,11 +923,10 @@ Resources:
             MaxTokens: 300
         ParsingConfiguration: !If
           - UseDataAutomationParser
-          - 
-            ParsingStrategy: BEDROCK_DATA_AUTOMATION
+          - ParsingStrategy: BEDROCK_DATA_AUTOMATION
             BedrockDataAutomationConfiguration:
               ParsingModality: MULTIMODAL
-          - !Ref "AWS::NoValue"
+          - !Ref 'AWS::NoValue'
 
   KnowledgeBase2WithPostgres:
     Type: AWS::Bedrock::KnowledgeBase
@@ -929,47 +939,45 @@ Resources:
         - '-'
         - - !Ref ResourcePrefix
           - 'kb'
-          - !Select [ 1, !Split [ ',' , !Ref KnowledgeBaseNames ] ]
+          - !Select [1, !Split [',', !Ref KnowledgeBaseNames]]
       Description: !Join
         - ''
         - - 'Knowledge Base for Bedrock ('
-          - !Select [ 1, !Split [ ',' , !Ref KnowledgeBaseNames ] ]
+          - !Select [1, !Split [',', !Ref KnowledgeBaseNames]]
           - ')'
       RoleArn: !GetAtt AmazonBedrockExecutionRoleForKnowledgeBase.Arn
       KnowledgeBaseConfiguration:
-        Type: "VECTOR"
+        Type: 'VECTOR'
         VectorKnowledgeBaseConfiguration:
-          EmbeddingModelArn: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0"
+          EmbeddingModelArn: !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0'
           SupplementalDataStorageConfiguration: !If
             - UseDataAutomationParser
-            - 
-              SupplementalDataStorageLocations:
+            - SupplementalDataStorageLocations:
                 - S3Location:
                     URI: !Join
                       - ''
                       - - 's3://'
                         - !Ref KnowledgeBaseDataSupplementalS3Bucket
                         - '/'
-                        - !Select [ 1, !Split [ ',' , !Ref KnowledgeBaseNames ] ]
+                        - !Select [1, !Split [',', !Ref KnowledgeBaseNames]]
                         - '/'
                   SupplementalDataStorageLocationType: S3
-            - !Ref "AWS::NoValue"
+            - !Ref 'AWS::NoValue'
       StorageConfiguration:
-        Type: "RDS"
+        Type: 'RDS'
         RdsConfiguration:
           CredentialsSecretArn: !Ref BedrockIntegrationSecret
           DatabaseName: !Ref KnowledgeBaseDatabaseName
           FieldMapping:
-            # TODO: These are currently hard-coded. Consider parameterizeing.
-            MetadataField: metadata
-            PrimaryKeyField: id
-            TextField: chunks
-            VectorField: embedding
+            MetadataField: !Ref KnowledgeBaseFieldMappingMetadataField
+            PrimaryKeyField: !Ref KnowledgeBaseFieldMappingPkField
+            TextField: !Ref KnowledgeBaseFieldMappingChunksField
+            VectorField: !Ref KnowledgeBaseFieldMappingEmbeddingField
           ResourceArn: !GetAtt AuroraDbCluster.DBClusterArn
           TableName: !Join
             - '.'
             - - !Sub '{{resolve:secretsmanager:${BedrockIntegrationSecret}::schema}}'
-              - !Select [ 1, !Split [ ',' , !Ref KnowledgeBaseTables ] ]
+              - !Select [1, !Split [',', !Ref KnowledgeBaseTables]]
       Tags:
         Owner: !Ref OwnerTag
         Project: !Ref ResourcePrefix
@@ -982,17 +990,17 @@ Resources:
         - '-'
         - - !Ref ResourcePrefix
           - 'kb'
-          - !Select [ 1, !Split [ ',' , !Ref KnowledgeBaseNames ] ]
+          - !Select [1, !Split [',', !Ref KnowledgeBaseNames]]
           - 'ds'
       DataDeletionPolicy: RETAIN
       DataSourceConfiguration:
-        Type: "S3"
+        Type: 'S3'
         S3Configuration:
           BucketArn: !GetAtt KnowledgeBaseDataSourceS3Bucket.Arn
           InclusionPrefixes:
             - !Join
               - ''
-              - - !Select [ 1, !Split [ ',' , !Ref KnowledgeBaseNames ] ]
+              - - !Select [1, !Split [',', !Ref KnowledgeBaseNames]]
                 - '/'
       VectorIngestionConfiguration:
         ChunkingConfiguration:
@@ -1003,11 +1011,10 @@ Resources:
             MaxTokens: 300
         ParsingConfiguration: !If
           - UseDataAutomationParser
-          - 
-            ParsingStrategy: BEDROCK_DATA_AUTOMATION
+          - ParsingStrategy: BEDROCK_DATA_AUTOMATION
             BedrockDataAutomationConfiguration:
               ParsingModality: MULTIMODAL
-          - !Ref "AWS::NoValue"
+          - !Ref 'AWS::NoValue'
 
   CollaboratorAgent1:
     Type: AWS::Bedrock::Agent
@@ -1015,14 +1022,14 @@ Resources:
       AgentName: !Join
         - '-'
         - - !Ref ResourcePrefix
-          - !Select [ 0, !Split [ ',' , !Ref KnowledgeBaseCollaboratorAgentNames ] ]
+          - !Select [0, !Split [',', !Ref KnowledgeBaseCollaboratorAgentNames]]
       AgentResourceRoleArn: !GetAtt AmazonBedrockExecutionRoleForAgents.Arn
       AutoPrepare: true
-      FoundationModel: "anthropic.claude-3-haiku-20240307-v1:0"
+      FoundationModel: 'anthropic.claude-3-haiku-20240307-v1:0'
       Instruction: |
         You are an expert in understanding vehicular user manuals.
         You have access to knowledge bases containing individual vehicular user manuals.
-      Description: "Collaborator Agent 1 - Vehicle Operation"
+      Description: 'Collaborator Agent 1 - Vehicle Operation'
       IdleSessionTTLInSeconds: 900
       KnowledgeBases:
         - KnowledgeBaseId: !If
@@ -1038,8 +1045,8 @@ Resources:
     Type: AWS::Bedrock::AgentAlias
     Properties:
       AgentId: !GetAtt CollaboratorAgent1.AgentId
-      AgentAliasName: "TestAlias"
-      Description: "Alias for testing"
+      AgentAliasName: 'TestAlias'
+      Description: 'Alias for testing'
 
   CollaboratorAgent2:
     Type: AWS::Bedrock::Agent
@@ -1047,14 +1054,14 @@ Resources:
       AgentName: !Join
         - '-'
         - - !Ref ResourcePrefix
-          - !Select [ 1, !Split [ ',' , !Ref KnowledgeBaseCollaboratorAgentNames ] ]
+          - !Select [1, !Split [',', !Ref KnowledgeBaseCollaboratorAgentNames]]
       AgentResourceRoleArn: !GetAtt AmazonBedrockExecutionRoleForAgents.Arn
       AutoPrepare: true
-      FoundationModel: "anthropic.claude-3-haiku-20240307-v1:0"
+      FoundationModel: 'anthropic.claude-3-haiku-20240307-v1:0'
       Instruction: |
         You are an expert in understanding Human Resource Policies.
         You have access to knowledge bases containing individual human resource policies.
-      Description: "Collaborator Agent 2 - Human Resources"
+      Description: 'Collaborator Agent 2 - Human Resources'
       IdleSessionTTLInSeconds: 900
       KnowledgeBases:
         - KnowledgeBaseId: !If
@@ -1070,8 +1077,8 @@ Resources:
     Type: AWS::Bedrock::AgentAlias
     Properties:
       AgentId: !GetAtt CollaboratorAgent2.AgentId
-      AgentAliasName: "TestAlias"
-      Description: "Alias for testing"
+      AgentAliasName: 'TestAlias'
+      Description: 'Alias for testing'
 
   OrchestrationAgent:
     Type: AWS::Bedrock::Agent
@@ -1082,24 +1089,26 @@ Resources:
       AgentCollaborators:
         - AgentDescriptor:
             AliasArn: !GetAtt CollaboratorAgentAlias1.AgentAliasArn
-          CollaborationInstruction: | 
+          CollaborationInstruction: |
             Retrieve relevant content from the available knowledge bases related to information on how to use and operate various vehicles.
-          CollaboratorName: !Select [ 0, !Split [ ',' , !Ref KnowledgeBaseCollaboratorAgentNames ] ]
+          CollaboratorName:
+            !Select [0, !Split [',', !Ref KnowledgeBaseCollaboratorAgentNames]]
           RelayConversationHistory: TO_COLLABORATOR
         - AgentDescriptor:
             AliasArn: !GetAtt CollaboratorAgentAlias2.AgentAliasArn
-          CollaborationInstruction: | 
+          CollaborationInstruction: |
             Retrieve relevant content from the available knowledge bases related to information on human resource policies.
-          CollaboratorName: !Select [ 1, !Split [ ',' , !Ref KnowledgeBaseCollaboratorAgentNames ] ]
+          CollaboratorName:
+            !Select [1, !Split [',', !Ref KnowledgeBaseCollaboratorAgentNames]]
           RelayConversationHistory: TO_COLLABORATOR
       AutoPrepare: true
-      FoundationModel: "anthropic.claude-3-haiku-20240307-v1:0"
+      FoundationModel: 'anthropic.claude-3-haiku-20240307-v1:0'
       Instruction: |
         You are a supervisor tasked with determining 
         a) if a user's input requires additional information which can be retrieved from a knowledge base, and
         b) which knowledge base to retrieve from. You will be provided with the user's input and a list of the existing knowledge bases with their descriptions below. 
-        Use this information to determine which knowledge bases contain relevant information. 
-      Description: !Sub "Orchestration Agent"
+        Use this information to determine which knowledge bases contain relevant information.
+      Description: !Sub 'Orchestration Agent'
       IdleSessionTTLInSeconds: 900
       MemoryConfiguration:
         EnabledMemoryTypes:
@@ -1114,13 +1123,13 @@ Resources:
     Type: AWS::Bedrock::AgentAlias
     Properties:
       AgentId: !GetAtt OrchestrationAgent.AgentId
-      AgentAliasName: "TestAlias"
-      Description: "Alias for testing"
+      AgentAliasName: 'TestAlias'
+      Description: 'Alias for testing'
 
   SyncKnowledgeBasesFunctionEventSourceMapping:
     Type: AWS::Lambda::EventSourceMapping
     Properties:
-      BatchSize: !Ref KnowledgeBaseSyncBatchSize  # equals the number of file uploads/deletes
+      BatchSize: !Ref KnowledgeBaseSyncBatchSize # equals the number of file uploads/deletes
       MaximumBatchingWindowInSeconds: 30
       EventSourceArn: !GetAtt SyncKnowledgeBasesSqsQueue.Arn
       FunctionName: !GetAtt SyncKnowledgeBasesFunction.Arn
@@ -1129,7 +1138,7 @@ Resources:
   SyncKnowledgeBasesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Description: "Syncs Knowledge Bases when new files are uploaded"
+      Description: 'Syncs Knowledge Bases when new files are uploaded'
       Timeout: 60
       CodeUri: app/python/synckb/
       Handler: main.lambda_handler
@@ -1144,30 +1153,30 @@ Resources:
           QUEUE_URL: !GetAtt SyncKnowledgeBasesSqsQueue.QueueUrl
       Policies:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        - Version: '2012-10-17' 
+        - Version: '2012-10-17'
           Statement:
-          - Effect: Allow
-            Action:
-              - bedrock:ListDataSources
-              - bedrock:StopIngestionJob
-              - bedrock:StartIngestionJob
-              - bedrock:ListIngestionJobs
-              - bedrock:GetDataSource
-            Resource:
-              - !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/*
-          - Effect: Allow
-            Action:
-              - bedrock:ListKnowledgeBases
-            Resource:
-              - "*"
-          - Effect: Allow
-            Action:
-              - sqs:SendMessage
-              - sqs:ReceiveMessage
-              - sqs:DeleteMessage
-              - sqs:GetQueueAttributes
-              - sqs:ChangeMessageVisibility
-            Resource: !GetAtt SyncKnowledgeBasesSqsQueue.Arn
+            - Effect: Allow
+              Action:
+                - bedrock:ListDataSources
+                - bedrock:StopIngestionJob
+                - bedrock:StartIngestionJob
+                - bedrock:ListIngestionJobs
+                - bedrock:GetDataSource
+              Resource:
+                - !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/*
+            - Effect: Allow
+              Action:
+                - bedrock:ListKnowledgeBases
+              Resource:
+                - '*'
+            - Effect: Allow
+              Action:
+                - sqs:SendMessage
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+                - sqs:ChangeMessageVisibility
+              Resource: !GetAtt SyncKnowledgeBasesSqsQueue.Arn
       Tracing: Active
       Tags:
         Owner: !Ref OwnerTag
@@ -1201,7 +1210,7 @@ Resources:
               Effect: Allow
               Action:
                 - bedrock:InvokeModelWithResponseStream
-              Resource: "*"
+              Resource: '*'
       Tracing: Active
       Tags:
         Owner: !Ref OwnerTag
@@ -1219,21 +1228,21 @@ Resources:
     Properties:
       StageName: Prod
       DefinitionBody:
-        openapi: "3.0.1"
+        openapi: '3.0.1'
         info:
           title: Query API
-          version: "1.0"
+          version: '1.0'
         paths:
           /query:
             post:
               x-amazon-apigateway-integration:
-                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${InvokeAgentWithApiGW.Arn}/invocations"
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${InvokeAgentWithApiGW.Arn}/invocations'
                 httpMethod: POST
                 type: aws_proxy
       Tags:
         Owner: !Ref OwnerTag
         Project: !Ref ResourcePrefix
-  
+
   # InvokeAgentWithoutApiGW:
   #   Type: AWS::Serverless::Function
   #   Condition: NoApiGateway
@@ -1263,7 +1272,7 @@ Resources:
   #             Effect: Allow
   #             Action:
   #               - bedrock:InvokeModelWithResponseStream
-  #             Resource: 
+  #             Resource:
   #               - !GetAtt OrchestrationAgent.AgentArn
   #     Tracing: Active
   #     Tags:
@@ -1291,13 +1300,13 @@ Resources:
           ORCH_AGENT_ALIAS_ID: !GetAtt OrchestrationAgentAlias.AgentAliasId
       Policies:
         - Statement:
-          - Sid: BedrockInvokePolicy
-            Effect: Allow
-            Action:
-              - bedrock:InvokeAgent
-              - bedrock:InvokeModelWithResponseStream
-            Resource: 
-              - !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent-alias/${OrchestrationAgent.AgentId}/*
+            - Sid: BedrockInvokePolicy
+              Effect: Allow
+              Action:
+                - bedrock:InvokeAgent
+                - bedrock:InvokeModelWithResponseStream
+              Resource:
+                - !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent-alias/${OrchestrationAgent.AgentId}/*
       Tracing: Active
       Tags:
         Owner: !Ref OwnerTag
@@ -1315,7 +1324,7 @@ Resources:
     Type: AWS::Lambda::Permission
     Condition: NoApiGateway
     Properties:
-      Action: "lambda:InvokeFunctionUrl"
+      Action: 'lambda:InvokeFunctionUrl'
       FunctionName: !GetAtt InvokeAgentJsWithoutApiGW.Arn
       FunctionUrlAuthType: NONE
       Principal: '*'
@@ -1323,7 +1332,7 @@ Resources:
 Outputs:
   ApiUrl:
     Description: URL for the API Gateway
-    Value: !Sub "https://${InvokeAgentApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/query"
+    Value: !Sub 'https://${InvokeAgentApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/query'
     Condition: CreateApiGateway
   OrchestrationAgentId:
     Description: Orchestrator Agent ID
@@ -1336,5 +1345,5 @@ Outputs:
     Value: !Sub '{"lambdaParams":{"isStreaming":"true"},"agentParams":{"agentId":"${OrchestrationAgent.AgentId}","agentAliasId":"${OrchestrationAgentAlias.AgentAliasId}","enableTrace":"true","inputText":"What vehicle has the highest tow rating?"}}'
   ApiTestCall:
     Description: A Test curl command for the API function
-    Value: !Sub "curl -X POST ${InvokeAgentJsWithoutApiGWUrl.FunctionUrl} -H 'Content-Type: application/json' -d '{\"sessionParams\":{\"sessionId\":\"TEST_SESSION\",\"endSession\":\"false\",\"memoryId\":\"TEST_MEMORY\"},\"lambdaParams\":{\"isStreaming\":\"true\"},\"agentParams\":{\"agentId\":\"${OrchestrationAgent.AgentId}\",\"agentAliasId\":\"${OrchestrationAgentAlias.AgentAliasId}\",\"enableTrace\":\"true\",\"inputText\":\"What vehicle has the highest tow rating?\"}}' --no-buffer"
+    Value: !Sub 'curl -X POST ${InvokeAgentJsWithoutApiGWUrl.FunctionUrl} -H ''Content-Type: application/json'' -d ''{"sessionParams":{"sessionId":"TEST_SESSION","endSession":"false","memoryId":"TEST_MEMORY"},"lambdaParams":{"isStreaming":"true"},"agentParams":{"agentId":"${OrchestrationAgent.AgentId}","agentAliasId":"${OrchestrationAgentAlias.AgentAliasId}","enableTrace":"true","inputText":"What vehicle has the highest tow rating?"}}'' --no-buffer'
     Condition: NoApiGateway

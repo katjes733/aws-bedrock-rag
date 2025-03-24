@@ -176,6 +176,7 @@ dist
 
 .aws-sam
 samconfig.toml
+.package
 
 # Temporary
 terraform
