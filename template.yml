@@ -626,7 +626,7 @@ Resources:
         SecretStringTemplate: !Sub '{"username":"bedrock_user","schema":"bedrock_integration","embedding_size":"${KnowledgeBaseEmbeddingSize}"}'
         GenerateStringKey: 'password'
         PasswordLength: 16
-        ExcludeCharacters: '"@/\\$'
+        ExcludeCharacters: '"@/\\$'''
       Tags:
         - Key: Owner
           Value: !Ref OwnerTag
@@ -834,11 +834,12 @@ Resources:
       BedrockSecretArn: !Ref BedrockIntegrationSecret
       DatabaseName: !Ref KnowledgeBaseDatabaseName
       KnowledgeBaseTables: !Ref KnowledgeBaseTables
+      EmbeddingSize: !Ref KnowledgeBaseEmbeddingSize
       FieldMapping:
-        PrimaryKeyField: !Ref KnowledgeBaseFieldMappingPkField
-        MetadataField: !Ref KnowledgeBaseFieldMappingMetadataField
-        TextField: !Ref KnowledgeBaseFieldMappingChunksField
-        VectorField: !Ref KnowledgeBaseFieldMappingEmbeddingField
+        primary_key_field: !Ref KnowledgeBaseFieldMappingPkField
+        metadata_field: !Ref KnowledgeBaseFieldMappingMetadataField
+        text_field: !Ref KnowledgeBaseFieldMappingChunksField
+        vector_field: !Ref KnowledgeBaseFieldMappingEmbeddingField
 
   KnowledgeBase1WithPostgres:
     Type: AWS::Bedrock::KnowledgeBase
